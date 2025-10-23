@@ -6,8 +6,8 @@ import numpy as np
 import pyg4ometry.geant4 as g4
 
 from .profiles import (
-    make_inner_wlsr_argon_profiles,
-    make_outer_wlsr_atmospheric_profiles,
+    make_inner_wlsr_profiles,
+    make_outer_wlsr_profiles,
 )
 
 
@@ -42,8 +42,8 @@ def place_inner_wlsr_in_argon(
     """
     Place inner WLS layers in the underground argon
     """
-    result = make_inner_wlsr_argon_profiles(
-        neckradius, tubeheight, totalheight, curvefraction, wls_height, inner_z, inner_r, outer_z, outer_r
+    result = make_inner_wlsr_profiles(
+        neckradius, tubeheight, totalheight, curvefraction, wls_height, inner_z, inner_r
     )
 
     (
@@ -143,7 +143,7 @@ def place_outer_wlsr_in_atmospheric(
         ttx_outer_r,
         ttx_inner_z,
         ttx_inner_r,
-    ) = make_outer_wlsr_atmospheric_profiles(
+    ) = make_outer_wlsr_profiles(
         neckradius, tubeheight, totalheight, curvefraction, wls_height, outer_z, outer_r
     )
 
