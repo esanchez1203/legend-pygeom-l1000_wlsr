@@ -41,11 +41,16 @@ def ensure_closed_bottom(z_list, r_list, bottom_z, closure_thickness=None, gap_t
         closure_thickness: if provided, close at bottom_z + closure_thickness
         gap_threshold: minimum gap size (in mm) to trigger point insertion (default 0.0001 = 100 nm)
     """
+<<<<<<< HEAD
     if closure_thickness is not None:
         closure_z = bottom_z + closure_thickness
     else:
         closure_z = bottom_z
 
+=======
+    closure_z = bottom_z + closure_thickness if closure_thickness is not None else bottom_z
+    
+>>>>>>> 8d5014e (fix merge issue)
     # Find first point with r > 0
     first_nonzero_idx = None
     for i, r in enumerate(r_list):
@@ -64,11 +69,16 @@ def ensure_closed_bottom(z_list, r_list, bottom_z, closure_thickness=None, gap_t
     if z_gap > gap_threshold:
         # Add conical transition points with adaptive spacing
         # For small gaps (< 0.01mm), use finer spacing; for large gaps use 0.1mm
+<<<<<<< HEAD
         if z_gap < 0.01:  # Less than 10 μm
             point_spacing = z_gap / 5  # At least 5 points
         else:
             point_spacing = 0.01  # 10 μm spacing for larger gaps
 
+=======
+        point_spacing = z_gap / 5 if z_gap < 0.01 else 0.01  # Less than 10 μm: use z_gap/5, else 10 μm spacing
+        
+>>>>>>> 8d5014e (fix merge issue)
         n_points = max(3, int(z_gap / point_spacing))
         new_points_z = []
         new_points_r = []
@@ -260,6 +270,7 @@ def make_inner_profile(
 
     inner_z, inner_r = [], []
 
+<<<<<<< HEAD
     for z, r in zip(outer_z, outer_r, strict=False):
         z_original = z + 5000
         dist_from_top = top_z_original - z_original
@@ -302,16 +313,44 @@ def make_inner_profile(
 
 
 def make_inner_wlsr_argon_profiles(
+=======
+    for z, r in zip(outer_z, outer_r):
+        distance = totalheight - 1 - z
+        thickness = get_thickness_at_distance(distance)
+        
+        if r > 0:
+            new_r = r - thickness
+            if new_r > 0:
+                inner_z.append(z)
+                inner_r.append(new_r)
+    
+    # Inner surface closes at higher z to maintain wall thickness at bottom
+    inner_closure_z = outer_z[0] + bottom_thickness
+    inner_z.insert(0, inner_closure_z)
+    inner_r.insert(0, 0)
+    
+    # Add ensure_closed_bottom for inner profile too
+    inner_z, inner_r = ensure_closed_bottom(inner_z, inner_r, inner_closure_z)
+    
+    # Add top closure point matching outer profile's top
+    top_closure_z = max(outer_z)
+    inner_z.append(top_closure_z)
+    inner_r.append(0)
+    
+    return inner_z, inner_r
+
+
+def make_inner_wlsr_profiles(
+>>>>>>> 8d5014e (fix merge issue)
     neckradius: float,
     tubeheight: float,
     totalheight: float,
     curvefraction: float,
-    wls_height: float,
-    inner_z: list,
-    inner_r: list,
-    outer_z: list,
-    outer_r: list,
+    wls_height: float = 2179,
+    inner_z: list = None,
+    inner_r: list = None,
 ) -> tuple:
+<<<<<<< HEAD
     """
     Structure: Steel inner -> Gap (5nm) -> TPB (mother) -> TTX (daughter, 1μm inside TPB) -> UAr
 
@@ -327,10 +366,25 @@ def make_inner_wlsr_argon_profiles(
 
     # TTX profiles (daughter volume - 1μm inside TPB on all sides)
     ttx_outer_z, ttx_outer_r = [], []
+=======
+    """Create inner WLSR profiles as concentric HOLLOW cylinders with proper closure."""
+    if inner_z is None or inner_r is None:
+        inner_z, inner_r = make_inner_profile(
+            neckradius, tubeheight, totalheight, curvefraction, wls_height
+        )
+
+    bottom_z = totalheight - tubeheight - 5000
+    top_wls_z = bottom_z + wls_height
+
+    tpb_inner_z, tpb_inner_r = [], []
+    tpb_outer_z, tpb_outer_r = [], []
+>>>>>>> 8d5014e (fix merge issue)
     ttx_inner_z, ttx_inner_r = [], []
+    ttx_outer_z, ttx_outer_r = [], []
 
     # Collect points in WLSR region
     points_collected = 0
+<<<<<<< HEAD
     for z, r in zip(inner_z, inner_r, strict=False):
         # For negative z-coordinates: top_wls_z is HIGHER than bottom_z
         # Collect all points in the WLS region
@@ -361,11 +415,43 @@ def make_inner_wlsr_argon_profiles(
                 ttx_inner_r.append(ttx_inner)
 
                 points_collected += 1
+=======
+    for z, r in zip(inner_z, inner_r):
+        if top_wls_z > z >= bottom_z and r > 0:
+            # Base position at steel inner
+            base = r
+            
+            # TPB outer at base
+            tpb_outer = base
+            # TPB extends inward by total thickness
+            total_thickness = WLSR_TTX_THICKNESS + 2 * WLSR_TPB_THICKNESS
+            tpb_inner = tpb_outer - total_thickness
+            
+            # TTX sits inside TPB with 1 μm clearance on all sides
+            # TTX outer is 1 μm inward from TPB outer
+            ttx_outer = tpb_outer - WLSR_TPB_THICKNESS
+            # TTX inner is 1 μm outward from TPB inner
+            ttx_inner = tpb_inner + WLSR_TPB_THICKNESS
+            
+            # Add points
+            tpb_outer_z.append(z)
+            tpb_outer_r.append(tpb_outer)
+            tpb_inner_z.append(z)
+            tpb_inner_r.append(tpb_inner)
+            
+            ttx_outer_z.append(z)
+            ttx_outer_r.append(ttx_outer)
+            ttx_inner_z.append(z)
+            ttx_inner_r.append(ttx_inner)
+            
+            points_collected += 1
+>>>>>>> 8d5014e (fix merge issue)
 
     # Add bottom closures with z-offsets
-    # For inner: layers grow INWARD, so close at progressively HIGHER z
+    # For inner: layers grow INWARD, so close at progressively LOWER z
     if tpb_outer_z:
         # Find where steel inner closes
+<<<<<<< HEAD
         steel_inner_bottom_z = min([z for z, r in zip(inner_z, inner_r, strict=False) if r == 0])
 
         # TPB outer closes first (lowest z) - right after the gap
@@ -374,10 +460,21 @@ def make_inner_wlsr_argon_profiles(
         tpb_outer_r.insert(0, 0)
 
         # TPB inner closes higher by total thickness
+=======
+        steel_inner_bottom_z = min([z for z, r in zip(inner_z, inner_r) if r == 0])
+        
+        # TPB outer closes first (highest z) - right at steel inner
+        tpb_outer_bottom_z = steel_inner_bottom_z
+        tpb_outer_z.insert(0, tpb_outer_bottom_z)
+        tpb_outer_r.insert(0, 0)
+        
+        # TPB inner closes lower by total thickness
+>>>>>>> 8d5014e (fix merge issue)
         tpb_total_thickness = WLSR_TTX_THICKNESS + 2 * WLSR_TPB_THICKNESS
-        tpb_inner_bottom_z = tpb_outer_bottom_z + tpb_total_thickness
+        tpb_inner_bottom_z = tpb_outer_bottom_z - tpb_total_thickness
         tpb_inner_z.insert(0, tpb_inner_bottom_z)
         tpb_inner_r.insert(0, 0)
+<<<<<<< HEAD
 
         # TTX outer is 1μm (TPB thickness) above TPB outer
         ttx_outer_bottom_z = tpb_outer_bottom_z + WLSR_TPB_THICKNESS
@@ -386,17 +483,30 @@ def make_inner_wlsr_argon_profiles(
 
         # TTX inner is 1μm (TPB thickness) below TPB inner
         ttx_inner_bottom_z = tpb_inner_bottom_z - WLSR_TPB_THICKNESS
+=======
+        
+        # TTX outer is 1μm (TPB thickness) below TPB outer
+        ttx_outer_bottom_z = tpb_outer_bottom_z - WLSR_TPB_THICKNESS
+        ttx_outer_z.insert(0, ttx_outer_bottom_z)
+        ttx_outer_r.insert(0, 0)
+        
+        # TTX inner is 1μm (TPB thickness) above TPB inner
+        ttx_inner_bottom_z = tpb_inner_bottom_z + WLSR_TPB_THICKNESS
+>>>>>>> 8d5014e (fix merge issue)
         ttx_inner_z.insert(0, ttx_inner_bottom_z)
         ttx_inner_r.insert(0, 0)
 
-        tpb_inner_z, tpb_inner_r = ensure_closed_bottom(tpb_inner_z, tpb_inner_r, tpb_inner_bottom_z)
+        # Add ensure_closed_bottom for all layers
         tpb_outer_z, tpb_outer_r = ensure_closed_bottom(tpb_outer_z, tpb_outer_r, tpb_outer_bottom_z)
-        ttx_inner_z, ttx_inner_r = ensure_closed_bottom(ttx_inner_z, ttx_inner_r, ttx_inner_bottom_z)
+        tpb_inner_z, tpb_inner_r = ensure_closed_bottom(tpb_inner_z, tpb_inner_r, tpb_inner_bottom_z)
         ttx_outer_z, ttx_outer_r = ensure_closed_bottom(ttx_outer_z, ttx_outer_r, ttx_outer_bottom_z)
+        ttx_inner_z, ttx_inner_r = ensure_closed_bottom(ttx_inner_z, ttx_inner_r, ttx_inner_bottom_z)
 
-        # All layers close at the same z at the top
+    # Add top closures
+    # TPB outer closes at top_wls_z
     tpb_outer_z.append(top_wls_z)
     tpb_outer_r.append(0)
+<<<<<<< HEAD
     tpb_inner_z.append(top_wls_z + 10.0)
     tpb_inner_r.append(0)
     ttx_outer_z.append(top_wls_z - WLSR_TPB_THICKNESS)
@@ -415,12 +525,35 @@ def make_inner_wlsr_argon_profiles(
         ttx_inner_r,
     )
 
+=======
+    
+    # TPB inner extends 10mm beyond to ensure closure
+    tpb_inner_z.append(top_wls_z + 10.0)
+    tpb_inner_r.append(0)
+    
+    # TTX outer is 1μm below TPB outer
+    ttx_outer_z.append(top_wls_z - WLSR_TPB_THICKNESS)
+    ttx_outer_r.append(0)
+    
+    # TTX inner extends 10mm beyond to ensure closure
+    ttx_inner_z.append(top_wls_z + 10.0)
+    ttx_inner_r.append(0)
+>>>>>>> 8d5014e (fix merge issue)
 
-def make_outer_wlsr_atmospheric_profiles(
+    return (
+        tpb_outer_z, tpb_outer_r,
+        tpb_inner_z, tpb_inner_r,
+        ttx_outer_z, ttx_outer_r,
+        ttx_inner_z, ttx_inner_r,
+    )
+
+
+def make_outer_wlsr_profiles(
     neckradius: float,
     tubeheight: float,
     totalheight: float,
     curvefraction: float,
+<<<<<<< HEAD
     wls_height: float,
     outer_z: list,
     outer_r: list,
@@ -432,15 +565,31 @@ def make_outer_wlsr_atmospheric_profiles(
     Structure: Steel outer -> Gap (5nm, argon) -> TPB shell (1 μm, parent) -> TTX core (daughter, 1 μm smaller on all sides) -> Atmospheric Argon
     """
     bottom_z = (totalheight - tubeheight) - 5000
+=======
+    wls_height: float = 2179,
+    outer_z: list = None,
+    outer_r: list = None,
+) -> tuple:
+    """Create outer WLSR profiles as concentric HOLLOW cylinders with proper closure."""
+    if outer_z is None or outer_r is None:
+        outer_z, outer_r = make_outer_profile(
+            neckradius, tubeheight, totalheight, curvefraction, wls_height
+        )
+
+    bottom_z = totalheight - tubeheight - 5000
+>>>>>>> 8d5014e (fix merge issue)
     top_wls_z = bottom_z + wls_height
 
-    # TPB profiles (parent/mother volume)
-    tpb_outer_z, tpb_outer_r = [], []
     tpb_inner_z, tpb_inner_r = [], []
+<<<<<<< HEAD
 
     # TTX profiles (daughter volume - smaller by 1 μm on all sides)
     ttx_outer_z, ttx_outer_r = [], []
+=======
+    tpb_outer_z, tpb_outer_r = [], []
+>>>>>>> 8d5014e (fix merge issue)
     ttx_inner_z, ttx_inner_r = [], []
+    ttx_outer_z, ttx_outer_r = [], []
 
     # Collect points in WLSR region
     points_collected = 0
@@ -559,6 +708,7 @@ def make_ofhc_cu_profiles(
     ofhc_inner_z, ofhc_inner_r = [], []
 
     # Build a lookup for inner_r by z
+<<<<<<< HEAD
     inner_r_by_z = {z: r for z, r in zip(inner_z, inner_r, strict=False)}
 
     for z_out, r_out in zip(outer_z, outer_r, strict=False):
@@ -572,6 +722,20 @@ def make_ofhc_cu_profiles(
                 # OFHC inner is outward from steel inner by protection gap
                 ofhc_inner_z.append(z_out)
                 ofhc_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+=======
+    inner_r_by_z = dict(zip(inner_z, inner_r, strict=False))
+
+    for z_out, r_out in zip(outer_z, outer_r):
+        if ofhc_start_z <= z_out <= ofhc_end_z and z_out in inner_r_by_z:
+            # Find corresponding inner r at this z
+            # OFHC outer is inward from steel outer by protection gap
+            ofhc_outer_z.append(z_out)
+            ofhc_outer_r.append(r_out - PROTECTION_GAP_LAYER)
+            
+            # OFHC inner is outward from steel inner by protection gap
+            ofhc_inner_z.append(z_out)
+            ofhc_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+>>>>>>> 8d5014e (fix merge issue)
 
     # Ensure boundaries
     if ofhc_outer_z and ofhc_outer_z[0] > ofhc_start_z + 1:
@@ -622,6 +786,7 @@ def make_316l_ss_profiles(
     ss_inner_z, ss_inner_r = [], []
 
     # Build a lookup for inner_r by z
+<<<<<<< HEAD
     inner_r_by_z = {z: r for z, r in zip(inner_z, inner_r, strict=False)}
 
     for z_out, r_out in zip(outer_z, outer_r, strict=False):
@@ -635,6 +800,20 @@ def make_316l_ss_profiles(
                 # SS inner is outward from inner profile by protection gap
                 ss_inner_z.append(z_out)
                 ss_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+=======
+    inner_r_by_z = dict(zip(inner_z, inner_r, strict=False))
+
+    for z_out, r_out in zip(outer_z, outer_r):
+        if ss_start_z <= z_out <= ss_end_z and r_out > 0 and z_out in inner_r_by_z:
+            # Find corresponding inner r at this z
+            # SS outer is inward from outer profile by protection gap
+            ss_outer_z.append(z_out)
+            ss_outer_r.append(r_out - PROTECTION_GAP_LAYER)
+            
+            # SS inner is outward from inner profile by protection gap
+            ss_inner_z.append(z_out)
+            ss_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+>>>>>>> 8d5014e (fix merge issue)
 
     # Ensure boundaries
     if not ss_outer_z or ss_outer_z[0] > ss_start_z + 1:
