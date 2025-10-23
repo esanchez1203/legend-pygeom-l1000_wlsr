@@ -386,9 +386,7 @@ def construct_reentrance_tube_with_layers(
     tube_solid = g4.solid.GenericPolycone("tube_sol", 0, 2 * np.pi, outer_r, outer_z, reg, "mm")
     tube_lv = g4.LogicalVolume(tube_solid, materials.metal_copper, "reentrancetube", reg)
     tube_lv.pygeom_color_rgba = [0.5, 0.5, 0.5, 0.8]
-    g4.PhysicalVolume(
-        [0, 0, 0], [0, 0, 0, "mm"], tube_lv, "reentrancetube", atmlar_lv, registry=reg
-    )
+    g4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], tube_lv, "reentrancetube", atmlar_lv, registry=reg)
 
     # Construct underground argon cavity
     uglar_solid = g4.solid.GenericPolycone("uglar_sol", 0, 2 * np.pi, inner_r, inner_z, reg, "mm")
