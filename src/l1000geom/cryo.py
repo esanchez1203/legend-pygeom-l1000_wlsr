@@ -10,10 +10,10 @@ from . import core
 
 # Import new reentrance tube profile and WLSR functions
 from .profiles import (
+    make_316l_ss_profiles,
     make_inner_profile,
     make_ofhc_cu_profiles,
     make_outer_profile,
-    make_316l_ss_profiles,
 )
 from .wlsr import place_inner_wlsr_in_argon, place_outer_wlsr_in_atmospheric
 
@@ -366,26 +366,24 @@ def construct_reentrance_tube_with_layers(
 ) -> tuple[g4.LogicalVolume, g4.PhysicalVolume]:
     """
     Construct reentrance tube with WLSR, OFHC Cu, and 316L SS layers.
-    
+
     All layers are always present in the geometry:
     - Steel tube with variable thickness
     - OFHC copper layer (2179-4184mm height)
     - 316L stainless steel layer (4184mm-top)
     - Inner WLSR (TPB + Tetratex) in underground argon
     - Outer WLSR (TPB + Tetratex) in atmospheric argon
-    
+
     Returns:
         Tuple of (underground_argon_lv, underground_argon_pv)
     """
-    
+
     # Generate steel tube profiles using functions from profiles.py
     outer_z, outer_r = make_outer_profile(neckradius, tubeheight, totalheight, curvefraction, wls_height)
     inner_z, inner_r = make_inner_profile(neckradius, tubeheight, totalheight, curvefraction, wls_height)
 
     # Construct steel tube
-    tube_solid = g4.solid.GenericPolycone(
-        "tube_sol", 0, 2 * np.pi, outer_r, outer_z, reg, "mm"
-    )
+    tube_solid = g4.solid.GenericPolycone("tube_sol", 0, 2 * np.pi, outer_r, outer_z, reg, "mm")
     tube_lv = g4.LogicalVolume(tube_solid, materials.metal_copper, "reentrancetube", reg)
     tube_lv.pygeom_color_rgba = [0.5, 0.5, 0.5, 0.8]
     tube_pv = g4.PhysicalVolume(
@@ -393,9 +391,7 @@ def construct_reentrance_tube_with_layers(
     )
 
     # Construct underground argon cavity
-    uglar_solid = g4.solid.GenericPolycone(
-        "uglar_sol", 0, 2 * np.pi, inner_r, inner_z, reg, "mm"
-    )
+    uglar_solid = g4.solid.GenericPolycone("uglar_sol", 0, 2 * np.pi, inner_r, inner_z, reg, "mm")
     uglar_lv = g4.LogicalVolume(uglar_solid, materials.liquidargon, "undergroundlar", reg)
     uglar_lv.pygeom_color_rgba = [0.1, 0.8, 0.3, 0.1]
     uglar_pv = g4.PhysicalVolume(
@@ -436,10 +432,18 @@ def construct_reentrance_tube_with_layers(
 
     # Construct OFHC copper layer (always present)
     ofhc_outer_z, ofhc_outer_r, ofhc_inner_z, ofhc_inner_r = make_ofhc_cu_profiles(
-        neckradius, tubeheight, totalheight, curvefraction,
-        ofhc_start_height, ofhc_end_height, outer_z, outer_r, inner_z, inner_r
+        neckradius,
+        tubeheight,
+        totalheight,
+        curvefraction,
+        ofhc_start_height,
+        ofhc_end_height,
+        outer_z,
+        outer_r,
+        inner_z,
+        inner_r,
     )
-    
+
     ofhc_outer_bound = g4.solid.GenericPolycone(
         "ofhc_cu_outer_bound", 0, 2 * np.pi, ofhc_outer_r, ofhc_outer_z, reg, "mm"
     )
@@ -455,16 +459,21 @@ def construct_reentrance_tube_with_layers(
     )
     ofhc_lv = g4.LogicalVolume(ofhc_solid, materials.metal_copper, "ofhc_cu_lv", reg)
     ofhc_lv.pygeom_color_rgba = [1.0, 0.5, 0.0, 1.0]
-    g4.PhysicalVolume(
-        [0, 0, 0], [0, 0, 0, "mm"], ofhc_lv, "ofhc_cu", tube_lv, registry=reg
-    )
+    g4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], ofhc_lv, "ofhc_cu", tube_lv, registry=reg)
 
     # Construct 316L stainless steel layer (always present)
     ss_outer_z, ss_outer_r, ss_inner_z, ss_inner_r = make_316l_ss_profiles(
-        neckradius, tubeheight, totalheight, curvefraction,
-        ss_start_height, outer_z, outer_r, inner_z, inner_r
+        neckradius,
+        tubeheight,
+        totalheight,
+        curvefraction,
+        ss_start_height,
+        outer_z,
+        outer_r,
+        inner_z,
+        inner_r,
     )
-    
+
     ss_outer_bound = g4.solid.GenericPolycone(
         "ss_316l_outer_bound", 0, 2 * np.pi, ss_outer_r, ss_outer_z, reg, "mm"
     )
@@ -480,9 +489,7 @@ def construct_reentrance_tube_with_layers(
     )
     ss_lv = g4.LogicalVolume(ss_solid, materials.metal_steel, "ss_316l_lv", reg)
     ss_lv.pygeom_color_rgba = [0.7, 0.7, 0.8, 1.0]
-    g4.PhysicalVolume(
-        [0, 0, 0], [0, 0, 0, "mm"], ss_lv, "ss_316l", tube_lv, registry=reg
-    )
+    g4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], ss_lv, "ss_316l", tube_lv, registry=reg)
 
     return uglar_lv, uglar_pv
 
@@ -542,7 +549,7 @@ def construct_and_place_cryostat(instr: core.InstrumentationData) -> core.Instru
     # Parameters for the new reentrance tube with WLSR and metal layers
     tubeheight = 6750  # Height of cylindrical section
     curvefraction = 0.05  # Fraction for curved transition
-    
+
     # WLSR and metal layer parameters (always enabled)
     wls_height = 2179  # Height where WLS layers extend to
     ofhc_start_height = 2179  # Start of OFHC copper layer
