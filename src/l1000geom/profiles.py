@@ -201,10 +201,13 @@ def make_outer_profile(
             z_out, r_out = z_filled, r_filled
             break
 
+<<<<<<< HEAD
     # DISABLED: Adding critical points causes geometry crossing issues
     # The WLSR profiles should work with existing tube points
     # If needed, enable this section and debug the crossing issue
 
+=======
+>>>>>>> a4e4d2a (fix unused physical volume)
     # Add points at critical WLS boundaries
     wls_top_z = bottom_z + wls_height
     wls_margin = 0.001  # 1 μm in mm
