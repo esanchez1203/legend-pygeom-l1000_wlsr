@@ -351,7 +351,9 @@ def make_inner_wlsr_profiles(
 ) -> WLSRProfiles:
     """Create inner WLSR profiles..."""
     if inner_z is None or inner_r is None:
-        inner_z, inner_r = make_inner_profile(neck_radius, tube_height, total_height, curve_fraction, wls_height)
+        inner_z, inner_r = make_inner_profile(
+            neck_radius, tube_height, total_height, curve_fraction, wls_height
+        )
 
     bottom_z = total_height - tube_height - 5000
     top_wls_z = bottom_z + wls_height
@@ -466,7 +468,9 @@ def make_outer_wlsr_profiles(
 ) -> WLSRProfiles:
     """Create outer WLSR profiles..."""
     if outer_z is None or outer_r is None:
-        outer_z, outer_r = make_outer_profile(neck_radius, tube_height, total_height, curve_fraction, wls_height)
+        outer_z, outer_r = make_outer_profile(
+            neck_radius, tube_height, total_height, curve_fraction, wls_height
+        )
 
     bottom_z = total_height - tube_height - 5000
     top_wls_z = bottom_z + wls_height

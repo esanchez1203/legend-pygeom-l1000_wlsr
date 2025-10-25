@@ -546,7 +546,7 @@ def construct_and_place_cryostat(instr: core.InstrumentationData) -> core.Instru
 
     # Parameters for the new reentrance tube with WLSR and metal layers
     tube_height = 6750  # Height of cylindrical section
-    tube_radius = 1912/2 #OD reentrance tube 
+    tube_radius = 1912 / 2  # OD reentrance tube
     curve_fraction = 0.05  # Fraction for curved transition
 
     # WLSR and metal layer parameters (always enabled)
@@ -668,7 +668,9 @@ def construct_and_place_cryostat(instr: core.InstrumentationData) -> core.Instru
     if "nm_plastic" not in instr.detail:
         log.warning("Warning: neutron moderator not specified. Omitting by default.")
     elif instr.detail["nm_plastic"] == "simple":
-        mod_z, mod_r_inn, mod_r_out = make_moderator_z_r_r(mod_height, mod_radius, mod_thickness, neck_radius + 1)
+        mod_z, mod_r_inn, mod_r_out = make_moderator_z_r_r(
+            mod_height, mod_radius, mod_thickness, neck_radius + 1
+        )
         construct_moderator_simple(
             instr.materials.pmma, instr.registry, mod_r_inn, mod_r_out, mod_z, mod_n_sides, atmlar_lv
         )
