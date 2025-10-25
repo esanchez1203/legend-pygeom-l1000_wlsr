@@ -1,13 +1,21 @@
 from __future__ import annotations
+
 from collections import namedtuple
 
 # Define named tuple types
-WLSRProfiles = namedtuple('WLSRProfiles', [
-    'tpb_outer_z', 'tpb_outer_r',
-    'tpb_inner_z', 'tpb_inner_r',
-    'ttx_outer_z', 'ttx_outer_r',
-    'ttx_inner_z', 'ttx_inner_r'
-])
+WLSRProfiles = namedtuple(
+    "WLSRProfiles",
+    [
+        "tpb_outer_z",
+        "tpb_outer_r",
+        "tpb_inner_z",
+        "tpb_inner_r",
+        "ttx_outer_z",
+        "ttx_outer_r",
+        "ttx_inner_z",
+        "ttx_inner_r",
+    ],
+)
 
 # Constants
 WLSR_TPB_THICKNESS = 1 * 1e-3  # 1 um TPB coating (in mm)
@@ -28,6 +36,7 @@ This module contains functions to generate z-r profile coordinates for:
 The profiles define GenericPolycone geometries with proper closure conditions
 and protection gaps to prevent overlapping volumes in Geant4.
 """
+
 
 def _steel_thickness_from_top(
     distance_from_top: float,
@@ -53,11 +62,11 @@ def _steel_thickness_from_top(
 
 
 def ensure_closed_bottom(
-    z_list: list[float], 
-    r_list: list[float], 
-    bottom_z: float, 
-    closure_thickness: float | None = None, 
-    gap_threshold: float = 0.000001
+    z_list: list[float],
+    r_list: list[float],
+    bottom_z: float,
+    closure_thickness: float | None = None,
+    gap_threshold: float = 0.000001,
 ) -> tuple[list[float], list[float]]:
     """
     Ensure proper bottom closure by adding intermediate conical points.
@@ -68,11 +77,11 @@ def ensure_closed_bottom(
         bottom_z: z coordinate where closure should occur
         closure_thickness: if provided, close at bottom_z + closure_thickness
         gap_threshold: minimum gap size (in mm) to trigger point insertion (default 0.0001 = 100 nm)
-    
+
     Returns:
         Tuple of (z_list, r_list) with proper closure points added
     """
-    
+
     closure_z = bottom_z + closure_thickness if closure_thickness is not None else bottom_z
 
     # Find first point with r > 0
@@ -125,7 +134,7 @@ def make_outer_profile(
 ) -> tuple[list[float], list[float]]:
     """
     Create complete outer profile with filled cylindrical section.
-    
+
     Returns:
         Tuple of (z_coordinates, r_coordinates)
     """
@@ -268,6 +277,7 @@ def make_outer_profile(
 
     return z_out, r_out
 
+
 def make_inner_profile(
     neckradius: float,
     tubeheight: float,
@@ -280,7 +290,7 @@ def make_inner_profile(
     """
     Create inner profile with constant wall thickness.
     Inner surface closes at higher z than outer to maintain thickness.
-    
+
     Returns:
         Tuple of (z_coordinates, r_coordinates)
     """
@@ -300,7 +310,7 @@ def make_inner_profile(
         if r == 0:
             # Skip r=0 points during iteration - closures added separately
             continue
-        elif r == neckradius:
+        if r == neckradius:
             # Cylindrical section
             inner_r_value = max(0, r - thickness)
             inner_z.append(z)
@@ -315,18 +325,18 @@ def make_inner_profile(
 
     # Add closures explicitly
     # Bottom closure: inner closes ABOVE outer by thickness offset
-    bottom_z_adjusted = (bottom_z - 5000)
+    bottom_z_adjusted = bottom_z - 5000
     inner_bottom_z = bottom_z_adjusted + bottom_thickness
-    
+
     inner_z.insert(0, inner_bottom_z)
     inner_r.insert(0, 0)
-    
+
     # Top closure with 6 mm thickness at the top
     top_thickness = _steel_thickness_from_top(0)  # 6.0 mm at the top
-    
+
     inner_z.append(top_z_original - 5000 - top_thickness)
     inner_r.append(0)
-    
+
     # Ensure proper closure with intermediate points
     inner_z, inner_r = ensure_closed_bottom(inner_z, inner_r, inner_bottom_z)
 
@@ -579,7 +589,7 @@ def make_ofhc_cu_profiles(
 ) -> tuple[list[float], list[float], list[float], list[float]]:
     """
     Create OFHC copper profiles as SOLID volume with protection gap from steel.
-    
+
     Returns:
         Tuple of (outer_z, outer_r, inner_z, inner_r)
     """
@@ -595,15 +605,14 @@ def make_ofhc_cu_profiles(
     inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
     for z_out, r_out in zip(outer_z, outer_r, strict=True):
-
         if ofhc_start_z <= z_out <= ofhc_end_z and z_out in inner_r_by_z:
-                # OFHC outer is inward from steel outer by protection gap
-                ofhc_outer_z.append(z_out)
-                ofhc_outer_r.append(r_out - PROTECTION_GAP_LAYER)
+            # OFHC outer is inward from steel outer by protection gap
+            ofhc_outer_z.append(z_out)
+            ofhc_outer_r.append(r_out - PROTECTION_GAP_LAYER)
 
-                # OFHC inner is outward from steel inner by protection gap
-                ofhc_inner_z.append(z_out)
-                ofhc_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+            # OFHC inner is outward from steel inner by protection gap
+            ofhc_inner_z.append(z_out)
+            ofhc_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
 
     # Ensure boundaries
     if ofhc_outer_z and ofhc_outer_z[0] > ofhc_start_z + 1:
@@ -647,7 +656,7 @@ def make_316l_ss_profiles(
 ) -> tuple[list[float], list[float], list[float], list[float]]:
     """
     Create 316L stainless steel profiles with protection gap on all sides.
-    
+
     Returns:
         Tuple of (outer_z, outer_r, inner_z, inner_r)
     """
@@ -663,15 +672,14 @@ def make_316l_ss_profiles(
     inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
     for z_out, r_out in zip(outer_z, outer_r, strict=True):
+        if ss_start_z <= z_out <= ss_end_z and r_out > 0 and z_out in inner_r_by_z:
+            # SS outer is inward from outer profile by protection gap
+            ss_outer_z.append(z_out)
+            ss_outer_r.append(r_out - PROTECTION_GAP_LAYER)
 
-        if ss_start_z <= z_out <= ss_end_z and r_out > 0 and z_out in inner_r_by_z:  
-                # SS outer is inward from outer profile by protection gap
-                ss_outer_z.append(z_out)
-                ss_outer_r.append(r_out - PROTECTION_GAP_LAYER)
-
-                # SS inner is outward from inner profile by protection gap
-                ss_inner_z.append(z_out)
-                ss_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+            # SS inner is outward from inner profile by protection gap
+            ss_inner_z.append(z_out)
+            ss_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
 
     # Ensure boundaries
     if not ss_outer_z or ss_outer_z[0] > ss_start_z + 1:

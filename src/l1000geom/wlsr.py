@@ -17,7 +17,7 @@ def _add_wls_surfaces(
     tpb_pv: g4.PhysicalVolume,
     tetratex_pv: g4.PhysicalVolume,
     lar_pv: g4.PhysicalVolume,
-    prefix: str = ""
+    prefix: str = "",
 ) -> None:
     """Add optical border surfaces for WLS layers."""
 
@@ -26,7 +26,7 @@ def _add_wls_surfaces(
         tpb_pv,
         tetratex_pv,
         materials.surfaces.wlsr_tpb_to_tetratex,
-        reg,  
+        reg,
     )
     g4.BorderSurface(f"bsurface_{prefix}lar_tpb", lar_pv, tpb_pv, materials.surfaces.lar_to_tpb, reg)
     g4.BorderSurface(f"bsurface_{prefix}tpb_lar", tpb_pv, lar_pv, materials.surfaces.lar_to_tpb, reg)
@@ -80,10 +80,22 @@ def place_inner_wlsr_in_argon(
 
     # Create TTX polycones (DAUGHTER volume inside TPB)
     tetratex_outer_bound = g4.solid.GenericPolycone(
-        "tetratex_inner_argon_outer_bound", 0, 2 * np.pi, result.ttx_outer_r, result.ttx_outer_z, registry, "mm"
+        "tetratex_inner_argon_outer_bound",
+        0,
+        2 * np.pi,
+        result.ttx_outer_r,
+        result.ttx_outer_z,
+        registry,
+        "mm",
     )
     tetratex_inner_bound = g4.solid.GenericPolycone(
-        "tetratex_inner_argon_inner_bound", 0, 2 * np.pi, result.ttx_inner_r, result.ttx_inner_z, registry, "mm"
+        "tetratex_inner_argon_inner_bound",
+        0,
+        2 * np.pi,
+        result.ttx_inner_r,
+        result.ttx_inner_z,
+        registry,
+        "mm",
     )
     tetratex_solid = g4.solid.Subtraction(
         "wls_tetratex_inner_argon_solid",
@@ -108,9 +120,8 @@ def place_inner_wlsr_in_argon(
         registry=registry,
     )
 
-    _add_wls_surfaces(
-        materials, registry, tpb_inner_pv, tetratex_inner_pv, lar_cavity_pv, prefix="inner_"
-    )
+    _add_wls_surfaces(materials, registry, tpb_inner_pv, tetratex_inner_pv, lar_cavity_pv, prefix="inner_")
+
 
 def place_outer_wlsr_in_atmospheric(
     materials,
@@ -134,10 +145,22 @@ def place_outer_wlsr_in_atmospheric(
 
     # Create TPB polycones (PARENT/MOTHER volume)
     tpb_outer_bound = g4.solid.GenericPolycone(
-        "tpb_outer_atmospheric_outer_bound", 0, 2 * np.pi, result.tpb_outer_r, result.tpb_outer_z, registry, "mm"
+        "tpb_outer_atmospheric_outer_bound",
+        0,
+        2 * np.pi,
+        result.tpb_outer_r,
+        result.tpb_outer_z,
+        registry,
+        "mm",
     )
     tpb_inner_bound = g4.solid.GenericPolycone(
-        "tpb_outer_atmospheric_inner_bound", 0, 2 * np.pi, result.tpb_inner_r, result.tpb_inner_z, registry, "mm"
+        "tpb_outer_atmospheric_inner_bound",
+        0,
+        2 * np.pi,
+        result.tpb_inner_r,
+        result.tpb_inner_z,
+        registry,
+        "mm",
     )
     tpb_solid = g4.solid.Subtraction(
         "tpb_outer_atmospheric_solid",
@@ -202,6 +225,4 @@ def place_outer_wlsr_in_atmospheric(
         registry=registry,
     )
 
-    _add_wls_surfaces(
-        materials, registry, tpb_outer_pv, tetratex_outer_pv, lar_mother_pv, prefix="outer_"
-    )
+    _add_wls_surfaces(materials, registry, tpb_outer_pv, tetratex_outer_pv, lar_mother_pv, prefix="outer_")
