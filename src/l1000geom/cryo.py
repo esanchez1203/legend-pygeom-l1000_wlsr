@@ -368,7 +368,7 @@ def construct_reentrance_tube_with_layers(
     Construct reentrance tube with WLSR, OFHC Cu, and 316L SS layers.
 
     All layers are always present in the geometry:
-    - Steel tube with variable thickness
+    - Copper tube with variable thickness
     - OFHC copper layer (2179-4184mm height)
     - 316L stainless steel layer (4184mm-top)
     - Inner WLSR (TPB + Tetratex) in underground argon
@@ -383,13 +383,13 @@ def construct_reentrance_tube_with_layers(
     inner_z, inner_r = make_inner_profile(neckradius, tubeheight, totalheight, curvefraction, wls_height)
 
     # Construct steel tube
-    tube_solid = g4.solid.GenericPolycone("tube_sol", 0, 2 * np.pi, outer_r, outer_z, reg, "mm")
+    tube_solid = g4.solid.GenericPolycone("reentrancetube", 0, 2 * np.pi, outer_r, outer_z, reg, "mm")
     tube_lv = g4.LogicalVolume(tube_solid, materials.metal_copper, "reentrancetube", reg)
     tube_lv.pygeom_color_rgba = [0.5, 0.5, 0.5, 0.8]
     g4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], tube_lv, "reentrancetube", atmlar_lv, registry=reg)
 
     # Construct underground argon cavity
-    uglar_solid = g4.solid.GenericPolycone("uglar_sol", 0, 2 * np.pi, inner_r, inner_z, reg, "mm")
+    uglar_solid = g4.solid.GenericPolycone("undergroundlar", 0, 2 * np.pi, inner_r, inner_z, reg, "mm")
     uglar_lv = g4.LogicalVolume(uglar_solid, materials.liquidargon, "undergroundlar", reg)
     uglar_lv.pygeom_color_rgba = [0.1, 0.8, 0.3, 0.1]
     uglar_pv = g4.PhysicalVolume(
@@ -449,13 +449,13 @@ def construct_reentrance_tube_with_layers(
         "ofhc_cu_inner_bound", 0, 2 * np.pi, ofhc_inner_r, ofhc_inner_z, reg, "mm"
     )
     ofhc_solid = g4.solid.Subtraction(
-        "ofhc_cu_solid",
+        "ofhc_cu",
         ofhc_outer_bound,
         ofhc_inner_bound,
         [[0, 0, 0], [0, 0, 0, "mm"]],
         reg,
     )
-    ofhc_lv = g4.LogicalVolume(ofhc_solid, materials.metal_copper, "ofhc_cu_lv", reg)
+    ofhc_lv = g4.LogicalVolume(ofhc_solid, materials.metal_copper, "ofhc_cu", reg)
     ofhc_lv.pygeom_color_rgba = [1.0, 0.5, 0.0, 1.0]
     g4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], ofhc_lv, "ofhc_cu", tube_lv, registry=reg)
 
@@ -479,13 +479,13 @@ def construct_reentrance_tube_with_layers(
         "ss_316l_inner_bound", 0, 2 * np.pi, ss_inner_r, ss_inner_z, reg, "mm"
     )
     ss_solid = g4.solid.Subtraction(
-        "ss_316l_solid",
+        "ss_316l",
         ss_outer_bound,
         ss_inner_bound,
         [[0, 0, 0], [0, 0, 0, "mm"]],
         reg,
     )
-    ss_lv = g4.LogicalVolume(ss_solid, materials.metal_steel, "ss_316l_lv", reg)
+    ss_lv = g4.LogicalVolume(ss_solid, materials.metal_steel, "ss_316l", reg)
     ss_lv.pygeom_color_rgba = [0.7, 0.7, 0.8, 1.0]
     g4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], ss_lv, "ss_316l", tube_lv, registry=reg)
 

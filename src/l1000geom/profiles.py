@@ -1,4 +1,13 @@
 from __future__ import annotations
+from collections import namedtuple
+
+# Define named tuple types
+WLSRProfiles = namedtuple('WLSRProfiles', [
+    'tpb_outer_z', 'tpb_outer_r',
+    'tpb_inner_z', 'tpb_inner_r',
+    'ttx_outer_z', 'ttx_outer_r',
+    'ttx_inner_z', 'ttx_inner_r'
+])
 
 # Constants
 WLSR_TPB_THICKNESS = 1 * 1e-3  # 1 um TPB coating (in mm)
@@ -7,14 +16,27 @@ WLSR_THICKNESS = WLSR_TPB_THICKNESS + WLSR_TTX_THICKNESS
 PROTECTION_GAP = 5 * 1e-6  # 5 nm gap in mm
 PROTECTION_GAP_LAYER = 10 * 1e-6  # 10 nm gap in mm
 
+"""
+Profile generation functions for L1000 geometry components.
 
-def get_thickness_at_distance(
+This module contains functions to generate z-r profile coordinates for:
+- Reentrance tube outer and inner boundaries
+- Wavelength-shifting reflector (WLSR) layers (TPB and Tetratex)
+- OFHC copper structural layers
+- 316L stainless steel layers
+
+The profiles define GenericPolycone geometries with proper closure conditions
+and protection gaps to prevent overlapping volumes in Geant4.
+"""
+
+def _steel_thickness_from_top(
     distance_from_top: float,
     include_wlsr: bool = False,
     wlsr_height: float = 2179,
     total_tube_height: float = 6247,
 ) -> float:
     """Calculate steel thickness at given distance from top of tube."""
+
     if distance_from_top <= 4067:
         progress = distance_from_top / 4067
         steel_thickness = 6.0 - progress * 0.0  # Constant thickness
@@ -30,7 +52,13 @@ def get_thickness_at_distance(
     return steel_thickness
 
 
-def ensure_closed_bottom(z_list, r_list, bottom_z, closure_thickness=None, gap_threshold=0.000001):
+def ensure_closed_bottom(
+    z_list: list[float], 
+    r_list: list[float], 
+    bottom_z: float, 
+    closure_thickness: float | None = None, 
+    gap_threshold: float = 0.000001
+) -> tuple[list[float], list[float]]:
     """
     Ensure proper bottom closure by adding intermediate conical points.
 
@@ -40,7 +68,11 @@ def ensure_closed_bottom(z_list, r_list, bottom_z, closure_thickness=None, gap_t
         bottom_z: z coordinate where closure should occur
         closure_thickness: if provided, close at bottom_z + closure_thickness
         gap_threshold: minimum gap size (in mm) to trigger point insertion (default 0.0001 = 100 nm)
+    
+    Returns:
+        Tuple of (z_list, r_list) with proper closure points added
     """
+    
     closure_z = bottom_z + closure_thickness if closure_thickness is not None else bottom_z
 
     # Find first point with r > 0
@@ -77,7 +109,7 @@ def ensure_closed_bottom(z_list, r_list, bottom_z, closure_thickness=None, gap_t
             new_points_r.append(r_intermediate)
 
         # Insert new points after closure point (index 0)
-        for i, (z, r) in enumerate(zip(new_points_z, new_points_r, strict=False)):
+        for i, (z, r) in enumerate(zip(new_points_z, new_points_r, strict=True)):
             z_list.insert(i + 1, z)
             r_list.insert(i + 1, r)
 
@@ -90,8 +122,13 @@ def make_outer_profile(
     totalheight: float,
     curvefraction: float,
     wls_height: float = 2179,
-) -> tuple[list, list]:
-    """Create complete outer profile with filled cylindrical section."""
+) -> tuple[list[float], list[float]]:
+    """
+    Create complete outer profile with filled cylindrical section.
+    
+    Returns:
+        Tuple of (z_coordinates, r_coordinates)
+    """
     z = []
     r = []
 
@@ -177,8 +214,8 @@ def make_outer_profile(
     r.reverse()
 
     # Sort by z coordinate
-    combined = sorted(zip(z, r, strict=False), key=lambda x: x[0])
-    z_sorted, r_sorted = zip(*combined, strict=False)
+    combined = sorted(zip(z, r, strict=True), key=lambda x: x[0])
+    z_sorted, r_sorted = zip(*combined, strict=True)
     z_out, r_out = list(z_sorted), list(r_sorted)
 
     # Fill large gaps in cylindrical section
@@ -196,10 +233,6 @@ def make_outer_profile(
             r_filled.extend(r_out[i + 1 :])
             z_out, r_out = z_filled, r_filled
             break
-
-    # DISABLED: Adding critical points causes geometry crossing issues
-    # The WLSR profiles should work with existing tube points
-    # If needed, enable this section and debug the crossing issue
 
     # Add points at critical WLS boundaries
     wls_top_z = bottom_z + wls_height
@@ -227,14 +260,13 @@ def make_outer_profile(
                     r_out.append(r_crit)
 
     if len(z_out) > len(list(z_sorted)):
-        combined = sorted(zip(z_out, r_out, strict=False), key=lambda x: x[0])
-        z_sorted, r_sorted = zip(*combined, strict=False)
+        combined = sorted(zip(z_out, r_out, strict=True), key=lambda x: x[0])
+        z_sorted, r_sorted = zip(*combined, strict=True)
         z_out, r_out = list(z_sorted), list(r_sorted)
 
     z_out, r_out = ensure_closed_bottom(z_out, r_out, z_out[0])
 
     return z_out, r_out
-
 
 def make_inner_profile(
     neckradius: float,
@@ -242,22 +274,27 @@ def make_inner_profile(
     totalheight: float,
     curvefraction: float,
     wls_height: float = 2179,
-) -> tuple[list, list]:
+    outer_z: list[float] | None = None,
+    outer_r: list[float] | None = None,
+) -> tuple[list[float], list[float]]:
     """
-    Create inner profile with constant wall thickness.
-    Inner surface closes at higher z than outer to maintain thickness.
+    Create inner profile using steel thickness function.
+    
+    Returns:
+        Tuple of (z_coordinates, r_coordinates)
     """
+
     outer_z, outer_r = make_outer_profile(neckradius, tubeheight, totalheight, curvefraction, wls_height)
     bottom_z = totalheight - tubeheight
 
     # Calculate the thickness offset needed at the bottom
-    bottom_thickness = get_thickness_at_distance(totalheight - 1 - bottom_z)
+    bottom_thickness = _steel_thickness_from_top(totalheight - 1 - bottom_z)
 
     inner_z, inner_r = [], []
 
-    for z, r in zip(outer_z, outer_r, strict=False):
+    for z, r in zip(outer_z, outer_r, strict=True):
         distance = totalheight - 1 - z
-        thickness = get_thickness_at_distance(distance)
+        thickness = _steel_thickness_from_top(distance)
 
         if r > 0:
             new_r = r - thickness
@@ -287,10 +324,10 @@ def make_inner_wlsr_profiles(
     totalheight: float,
     curvefraction: float,
     wls_height: float = 2179,
-    inner_z: list | None = None,
-    inner_r: list | None = None,
-) -> tuple:
-    """Create inner WLSR profiles as concentric HOLLOW cylinders with proper closure."""
+    inner_z: list[float] | None = None,
+    inner_r: list[float] | None = None,
+) -> WLSRProfiles:
+    """Create inner WLSR profiles..."""
     if inner_z is None or inner_r is None:
         inner_z, inner_r = make_inner_profile(neckradius, tubeheight, totalheight, curvefraction, wls_height)
 
@@ -304,10 +341,10 @@ def make_inner_wlsr_profiles(
 
     # Collect points in WLSR region
     points_collected = 0
-    for z, r in zip(inner_z, inner_r, strict=False):
+    for z, r in zip(inner_z, inner_r, strict=True):
         if top_wls_z > z >= bottom_z and r > 0:
             # Base position at steel inner
-            base = r
+            base = r - PROTECTION_GAP
 
             # TPB outer at base
             tpb_outer = base
@@ -338,7 +375,7 @@ def make_inner_wlsr_profiles(
     # For inner: layers grow INWARD, so close at progressively LOWER z
     if tpb_outer_z:
         # Find where steel inner closes
-        steel_inner_bottom_z = min([z for z, r in zip(inner_z, inner_r, strict=False) if r == 0])
+        steel_inner_bottom_z = min([z for z, r in zip(inner_z, inner_r, strict=True) if r == 0])
 
         # TPB outer closes first (highest z) - right at steel inner
         tpb_outer_bottom_z = steel_inner_bottom_z
@@ -384,15 +421,15 @@ def make_inner_wlsr_profiles(
     ttx_inner_z.append(top_wls_z + 10.0)
     ttx_inner_r.append(0)
 
-    return (
-        tpb_outer_z,
-        tpb_outer_r,
-        tpb_inner_z,
-        tpb_inner_r,
-        ttx_outer_z,
-        ttx_outer_r,
-        ttx_inner_z,
-        ttx_inner_r,
+    return WLSRProfiles(
+        tpb_outer_z=tpb_outer_z,
+        tpb_outer_r=tpb_outer_r,
+        tpb_inner_z=tpb_inner_z,
+        tpb_inner_r=tpb_inner_r,
+        ttx_outer_z=ttx_outer_z,
+        ttx_outer_r=ttx_outer_r,
+        ttx_inner_z=ttx_inner_z,
+        ttx_inner_r=ttx_inner_r,
     )
 
 
@@ -402,10 +439,10 @@ def make_outer_wlsr_profiles(
     totalheight: float,
     curvefraction: float,
     wls_height: float = 2179,
-    outer_z: list | None = None,
-    outer_r: list | None = None,
-) -> tuple:
-    """Create outer WLSR profiles as concentric HOLLOW cylinders with proper closure."""
+    outer_z: list[float] | None = None,
+    outer_r: list[float] | None = None,
+) -> WLSRProfiles:
+    """Create outer WLSR profiles..."""
     if outer_z is None or outer_r is None:
         outer_z, outer_r = make_outer_profile(neckradius, tubeheight, totalheight, curvefraction, wls_height)
 
@@ -419,7 +456,7 @@ def make_outer_wlsr_profiles(
 
     # Collect points in WLSR region
     points_collected = 0
-    for z, r in zip(outer_z, outer_r, strict=False):
+    for z, r in zip(outer_z, outer_r, strict=True):
         # For negative z-coordinates: top_wls_z is HIGHER than bottom_z
         # Collect all points in the WLS region
         if top_wls_z > z >= bottom_z and r > 0:
@@ -455,7 +492,7 @@ def make_outer_wlsr_profiles(
     # For outer: layers grow OUTWARD, so close at progressively HIGHER z
     if tpb_outer_z:
         # Find where steel outer closes
-        steel_outer_bottom_z = min([z for z, r in zip(outer_z, outer_r, strict=False) if r == 0])
+        steel_outer_bottom_z = min([z for z, r in zip(outer_z, outer_r, strict=True) if r == 0])
 
         # TPB inner closes first (lowest z) - right after the gap
         tpb_inner_bottom_z = steel_outer_bottom_z + PROTECTION_GAP
@@ -501,15 +538,15 @@ def make_outer_wlsr_profiles(
     ttx_outer_z.append(top_wls_z - WLSR_TPB_THICKNESS)
     ttx_outer_r.append(0)
 
-    return (
-        tpb_outer_z,
-        tpb_outer_r,
-        tpb_inner_z,
-        tpb_inner_r,
-        ttx_outer_z,
-        ttx_outer_r,
-        ttx_inner_z,
-        ttx_inner_r,
+    return WLSRProfiles(
+        tpb_outer_z=tpb_outer_z,
+        tpb_outer_r=tpb_outer_r,
+        tpb_inner_z=tpb_inner_z,
+        tpb_inner_r=tpb_inner_r,
+        ttx_outer_z=ttx_outer_z,
+        ttx_outer_r=ttx_outer_r,
+        ttx_inner_z=ttx_inner_z,
+        ttx_inner_r=ttx_inner_r,
     )
 
 
@@ -520,12 +557,18 @@ def make_ofhc_cu_profiles(
     curvefraction: float,
     ofhc_start_height: float,
     ofhc_end_height: float,
-    outer_z: list,
-    outer_r: list,
-    inner_z: list,
-    inner_r: list,
-) -> tuple:
-    """Create OFHC copper profiles as SOLID volume with protection gap from steel."""
+    outer_z: list[float],
+    outer_r: list[float],
+    inner_z: list[float],
+    inner_r: list[float],
+) -> tuple[list[float], list[float], list[float], list[float]]:
+    """
+    Create OFHC copper profiles as SOLID volume with protection gap from steel.
+    
+    Returns:
+        Tuple of (outer_z, outer_r, inner_z, inner_r)
+    """
+
     bottom_z = (totalheight - tubeheight) - 5000
     ofhc_start_z = bottom_z + ofhc_start_height
     ofhc_end_z = bottom_z + ofhc_end_height
@@ -534,9 +577,9 @@ def make_ofhc_cu_profiles(
     ofhc_inner_z, ofhc_inner_r = [], []
 
     # Build a lookup for inner_r by z
-    inner_r_by_z = dict(zip(inner_z, inner_r, strict=False))
+    inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
-    for z_out, r_out in zip(outer_z, outer_r, strict=False):
+    for z_out, r_out in zip(outer_z, outer_r, strict=True):
         if ofhc_start_z <= z_out <= ofhc_end_z and z_out in inner_r_by_z:
             # Find corresponding inner r at this z
             # OFHC outer is inward from steel outer by protection gap
@@ -551,14 +594,14 @@ def make_ofhc_cu_profiles(
     if ofhc_outer_z and ofhc_outer_z[0] > ofhc_start_z + 1:
         ofhc_outer_z.insert(0, ofhc_start_z)
         ofhc_outer_r.insert(0, neckradius - PROTECTION_GAP_LAYER)
-        inner_start_r = neckradius - get_thickness_at_distance(tubeheight - ofhc_start_height)
+        inner_start_r = neckradius - _steel_thickness_from_top(tubeheight - ofhc_start_height)
         ofhc_inner_z.insert(0, ofhc_start_z)
         ofhc_inner_r.insert(0, inner_start_r + PROTECTION_GAP_LAYER)
 
     if ofhc_outer_z and ofhc_outer_z[-1] < ofhc_end_z - 1:
         ofhc_outer_z.append(ofhc_end_z)
         ofhc_outer_r.append(neckradius - PROTECTION_GAP_LAYER)
-        inner_end_r = neckradius - get_thickness_at_distance(tubeheight - ofhc_end_height)
+        inner_end_r = neckradius - _steel_thickness_from_top(tubeheight - ofhc_end_height)
         ofhc_inner_z.append(ofhc_end_z)
         ofhc_inner_r.append(inner_end_r + PROTECTION_GAP_LAYER)
 
@@ -582,12 +625,18 @@ def make_316l_ss_profiles(
     totalheight: float,
     curvefraction: float,
     ss_start_height: float,
-    outer_z: list,
-    outer_r: list,
-    inner_z: list,
-    inner_r: list,
-) -> tuple:
-    """Create 316L stainless steel profiles with protection gap on all sides."""
+    outer_z: list[float],
+    outer_r: list[float],
+    inner_z: list[float],
+    inner_r: list[float],
+) -> tuple[list[float], list[float], list[float], list[float]]:
+    """
+    Create 316L stainless steel profiles with protection gap on all sides.
+    
+    Returns:
+        Tuple of (outer_z, outer_r, inner_z, inner_r)
+    """
+
     bottom_z = (totalheight - tubeheight) - 5000
     ss_start_z = bottom_z + ss_start_height
     ss_end_z = (totalheight - 1) - 5000
@@ -596,9 +645,9 @@ def make_316l_ss_profiles(
     ss_inner_z, ss_inner_r = [], []
 
     # Build a lookup for inner_r by z
-    inner_r_by_z = dict(zip(inner_z, inner_r, strict=False))
+    inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
-    for z_out, r_out in zip(outer_z, outer_r, strict=False):
+    for z_out, r_out in zip(outer_z, outer_r, strict=True):
         if ss_start_z <= z_out <= ss_end_z and r_out > 0 and z_out in inner_r_by_z:
             # Find corresponding inner r at this z
             # SS outer is inward from outer profile by protection gap
@@ -611,14 +660,14 @@ def make_316l_ss_profiles(
 
     # Ensure boundaries
     if not ss_outer_z or ss_outer_z[0] > ss_start_z + 1:
-        inner_start_r = neckradius - get_thickness_at_distance(tubeheight - ss_start_height)
+        inner_start_r = neckradius - _steel_thickness_from_top(tubeheight - ss_start_height)
         ss_outer_z.insert(0, ss_start_z)
         ss_outer_r.insert(0, neckradius - PROTECTION_GAP_LAYER)
         ss_inner_z.insert(0, ss_start_z)
         ss_inner_r.insert(0, inner_start_r + PROTECTION_GAP_LAYER)
 
     if ss_outer_z and ss_outer_z[-1] < ss_end_z - 1:
-        inner_end_r = neckradius - get_thickness_at_distance(0)
+        inner_end_r = neckradius - _steel_thickness_from_top(0)
         ss_outer_z.append(ss_end_z)
         ss_outer_r.append(neckradius - PROTECTION_GAP_LAYER)
         ss_inner_z.append(ss_end_z)
