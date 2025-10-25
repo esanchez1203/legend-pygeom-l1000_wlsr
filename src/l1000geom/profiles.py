@@ -595,9 +595,8 @@ def make_ofhc_cu_profiles(
     inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
     for z_out, r_out in zip(outer_z, outer_r, strict=True):
-        if ofhc_start_z <= z_out <= ofhc_end_z:
-            # Find corresponding inner r at this z
-            if z_out in inner_r_by_z:
+
+        if ofhc_start_z <= z_out <= ofhc_end_z and z_out in inner_r_by_z:
                 # OFHC outer is inward from steel outer by protection gap
                 ofhc_outer_z.append(z_out)
                 ofhc_outer_r.append(r_out - PROTECTION_GAP_LAYER)
@@ -664,9 +663,8 @@ def make_316l_ss_profiles(
     inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
     for z_out, r_out in zip(outer_z, outer_r, strict=True):
-        if ss_start_z <= z_out <= ss_end_z and r_out > 0:
-            # Find corresponding inner r at this z
-            if z_out in inner_r_by_z:
+
+        if ss_start_z <= z_out <= ss_end_z and r_out > 0 and z_out in inner_r_by_z:  
                 # SS outer is inward from outer profile by protection gap
                 ss_outer_z.append(z_out)
                 ss_outer_r.append(r_out - PROTECTION_GAP_LAYER)
