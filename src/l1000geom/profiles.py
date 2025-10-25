@@ -278,42 +278,57 @@ def make_inner_profile(
     outer_r: list[float] | None = None,
 ) -> tuple[list[float], list[float]]:
     """
-    Create inner profile using steel thickness function.
+    Create inner profile with constant wall thickness.
+    Inner surface closes at higher z than outer to maintain thickness.
     
     Returns:
         Tuple of (z_coordinates, r_coordinates)
     """
 
     outer_z, outer_r = make_outer_profile(neckradius, tubeheight, totalheight, curvefraction, wls_height)
+    top_z_original = totalheight - 1
     bottom_z = totalheight - tubeheight
-
-    # Calculate the thickness offset needed at the bottom
     bottom_thickness = _steel_thickness_from_top(totalheight - 1 - bottom_z)
 
     inner_z, inner_r = [], []
 
     for z, r in zip(outer_z, outer_r, strict=True):
-        distance = totalheight - 1 - z
-        thickness = _steel_thickness_from_top(distance)
+        z_original = z + 5000
+        dist_from_top = top_z_original - z_original
+        thickness = _steel_thickness_from_top(dist_from_top)
 
-        if r > 0:
-            new_r = r - thickness
-            if new_r > 0:
-                inner_z.append(z)
-                inner_r.append(new_r)
+        if r == 0:
+            # Skip r=0 points during iteration - closures added separately
+            continue
+        elif r == neckradius:
+            # Cylindrical section
+            inner_r_value = max(0, r - thickness)
+            inner_z.append(z)
+            inner_r.append(inner_r_value)
+        else:
+            # Curved section - scale thickness by radius ratio
+            radius_ratio = r / neckradius
+            scaled_thickness = thickness * radius_ratio
+            inner_r_value = max(0, r - scaled_thickness)
+            inner_z.append(z)
+            inner_r.append(inner_r_value)
 
-    # Inner surface closes at higher z to maintain wall thickness at bottom
-    inner_closure_z = outer_z[0] + bottom_thickness
-    inner_z.insert(0, inner_closure_z)
+    # Add closures explicitly
+    # Bottom closure: inner closes ABOVE outer by thickness offset
+    bottom_z_adjusted = (bottom_z - 5000)
+    inner_bottom_z = bottom_z_adjusted + bottom_thickness
+    
+    inner_z.insert(0, inner_bottom_z)
     inner_r.insert(0, 0)
-
-    # Add ensure_closed_bottom for inner profile too
-    inner_z, inner_r = ensure_closed_bottom(inner_z, inner_r, inner_closure_z)
-
-    # Add top closure point matching outer profile's top
-    top_closure_z = max(outer_z)
-    inner_z.append(top_closure_z)
+    
+    # Top closure with 6 mm thickness at the top
+    top_thickness = _steel_thickness_from_top(0)  # 6.0 mm at the top
+    
+    inner_z.append(top_z_original - 5000 - top_thickness)
     inner_r.append(0)
+    
+    # Ensure proper closure with intermediate points
+    inner_z, inner_r = ensure_closed_bottom(inner_z, inner_r, inner_bottom_z)
 
     return inner_z, inner_r
 
@@ -580,15 +595,16 @@ def make_ofhc_cu_profiles(
     inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
     for z_out, r_out in zip(outer_z, outer_r, strict=True):
-        if ofhc_start_z <= z_out <= ofhc_end_z and z_out in inner_r_by_z:
+        if ofhc_start_z <= z_out <= ofhc_end_z:
             # Find corresponding inner r at this z
-            # OFHC outer is inward from steel outer by protection gap
-            ofhc_outer_z.append(z_out)
-            ofhc_outer_r.append(r_out - PROTECTION_GAP_LAYER)
+            if z_out in inner_r_by_z:
+                # OFHC outer is inward from steel outer by protection gap
+                ofhc_outer_z.append(z_out)
+                ofhc_outer_r.append(r_out - PROTECTION_GAP_LAYER)
 
-            # OFHC inner is outward from steel inner by protection gap
-            ofhc_inner_z.append(z_out)
-            ofhc_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+                # OFHC inner is outward from steel inner by protection gap
+                ofhc_inner_z.append(z_out)
+                ofhc_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
 
     # Ensure boundaries
     if ofhc_outer_z and ofhc_outer_z[0] > ofhc_start_z + 1:
@@ -648,15 +664,16 @@ def make_316l_ss_profiles(
     inner_r_by_z = dict(zip(inner_z, inner_r, strict=True))
 
     for z_out, r_out in zip(outer_z, outer_r, strict=True):
-        if ss_start_z <= z_out <= ss_end_z and r_out > 0 and z_out in inner_r_by_z:
+        if ss_start_z <= z_out <= ss_end_z and r_out > 0:
             # Find corresponding inner r at this z
-            # SS outer is inward from outer profile by protection gap
-            ss_outer_z.append(z_out)
-            ss_outer_r.append(r_out - PROTECTION_GAP_LAYER)
+            if z_out in inner_r_by_z:
+                # SS outer is inward from outer profile by protection gap
+                ss_outer_z.append(z_out)
+                ss_outer_r.append(r_out - PROTECTION_GAP_LAYER)
 
-            # SS inner is outward from inner profile by protection gap
-            ss_inner_z.append(z_out)
-            ss_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
+                # SS inner is outward from inner profile by protection gap
+                ss_inner_z.append(z_out)
+                ss_inner_r.append(inner_r_by_z[z_out] + PROTECTION_GAP_LAYER)
 
     # Ensure boundaries
     if not ss_outer_z or ss_outer_z[0] > ss_start_z + 1:
